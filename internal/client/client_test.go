@@ -71,7 +71,7 @@ func TestListBuckets(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(buckets)
+		_ = json.NewEncoder(w).Encode(buckets)
 	}))
 	defer server.Close()
 
@@ -119,7 +119,7 @@ func TestGetBucketInfo_byID(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(bucket)
+		_ = json.NewEncoder(w).Encode(bucket)
 	}))
 	defer server.Close()
 
@@ -149,7 +149,7 @@ func TestGetBucketInfo_byID(t *testing.T) {
 func TestGetBucketInfo_notFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Bucket not found"))
+		_, _ = w.Write([]byte("Bucket not found"))
 	}))
 	defer server.Close()
 
@@ -196,7 +196,7 @@ func TestCreateBucket(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(bucket)
+		_ = json.NewEncoder(w).Encode(bucket)
 	}))
 	defer server.Close()
 
@@ -246,7 +246,7 @@ func TestUpdateBucket(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(bucket)
+		_ = json.NewEncoder(w).Encode(bucket)
 	}))
 	defer server.Close()
 
@@ -373,7 +373,7 @@ func TestRemoveBucketAlias(t *testing.T) {
 func TestClient_errorHandling(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
+		_, _ = w.Write([]byte("Internal server error"))
 	}))
 	defer server.Close()
 

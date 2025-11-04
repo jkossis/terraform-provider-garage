@@ -13,14 +13,14 @@ import (
 	"strings"
 )
 
-// Client is a Garage API client
+// Client is a Garage API client.
 type Client struct {
 	endpoint   string
 	token      string
 	httpClient *http.Client
 }
 
-// NewClient creates a new Garage API client
+// NewClient creates a new Garage API client.
 func NewClient(endpoint, token string) *Client {
 	return &Client{
 		endpoint:   strings.TrimSuffix(endpoint, "/"),
@@ -29,46 +29,46 @@ func NewClient(endpoint, token string) *Client {
 	}
 }
 
-// Bucket represents a Garage bucket
+// Bucket represents a Garage bucket.
 type Bucket struct {
-	ID              string              `json:"id"`
-	GlobalAliases   []string            `json:"globalAliases"`
-	WebsiteAccess   bool                `json:"websiteAccess"`
-	WebsiteConfig   *WebsiteConfig      `json:"websiteConfig,omitempty"`
-	Keys            []BucketKeyInfo     `json:"keys"`
-	Objects         int64               `json:"objects,omitempty"`
-	Bytes           int64               `json:"bytes,omitempty"`
-	UnfinishedUploads int64             `json:"unfinishedUploads,omitempty"`
-	Quotas          *BucketQuotas       `json:"quotas,omitempty"`
+	ID                string          `json:"id"`
+	GlobalAliases     []string        `json:"globalAliases"`
+	WebsiteAccess     bool            `json:"websiteAccess"`
+	WebsiteConfig     *WebsiteConfig  `json:"websiteConfig,omitempty"`
+	Keys              []BucketKeyInfo `json:"keys"`
+	Objects           int64           `json:"objects,omitempty"`
+	Bytes             int64           `json:"bytes,omitempty"`
+	UnfinishedUploads int64           `json:"unfinishedUploads,omitempty"`
+	Quotas            *BucketQuotas   `json:"quotas,omitempty"`
 }
 
-// WebsiteConfig represents website configuration for a bucket
+// WebsiteConfig represents website configuration for a bucket.
 type WebsiteConfig struct {
 	IndexDocument string `json:"indexDocument"`
 	ErrorDocument string `json:"errorDocument"`
 }
 
-// BucketKeyInfo represents key permissions on a bucket
+// BucketKeyInfo represents key permissions on a bucket.
 type BucketKeyInfo struct {
-	AccessKeyID string        `json:"accessKeyId"`
-	Name        string        `json:"name"`
-	Permissions Permissions   `json:"permissions"`
+	AccessKeyID string      `json:"accessKeyId"`
+	Name        string      `json:"name"`
+	Permissions Permissions `json:"permissions"`
 }
 
-// Permissions represents the permissions a key has on a bucket
+// Permissions represents the permissions a key has on a bucket.
 type Permissions struct {
 	Read  bool `json:"read"`
 	Write bool `json:"write"`
 	Owner bool `json:"owner"`
 }
 
-// BucketQuotas represents quotas for a bucket
+// BucketQuotas represents quotas for a bucket.
 type BucketQuotas struct {
 	MaxSize    *int64 `json:"maxSize,omitempty"`
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
-// CreateBucketRequest represents the request to create a bucket
+// CreateBucketRequest represents the request to create a bucket.
 type CreateBucketRequest struct {
 	GlobalAlias *string `json:"globalAlias,omitempty"`
 	LocalAlias  *struct {
@@ -77,28 +77,28 @@ type CreateBucketRequest struct {
 	} `json:"localAlias,omitempty"`
 }
 
-// UpdateBucketRequest represents the request to update a bucket
+// UpdateBucketRequest represents the request to update a bucket.
 type UpdateBucketRequest struct {
 	WebsiteAccess *struct {
-		Enabled       bool           `json:"enabled"`
-		IndexDocument *string        `json:"indexDocument,omitempty"`
-		ErrorDocument *string        `json:"errorDocument,omitempty"`
+		Enabled       bool    `json:"enabled"`
+		IndexDocument *string `json:"indexDocument,omitempty"`
+		ErrorDocument *string `json:"errorDocument,omitempty"`
 	} `json:"websiteAccess,omitempty"`
 	Quotas *BucketQuotas `json:"quotas,omitempty"`
 }
 
-// DeleteBucketRequest represents the request to delete a bucket
+// DeleteBucketRequest represents the request to delete a bucket.
 type DeleteBucketRequest struct {
 	ID string `json:"id"`
 }
 
-// GetBucketInfoRequest represents the request to get bucket info
+// GetBucketInfoRequest represents the request to get bucket info.
 type GetBucketInfoRequest struct {
 	ID          *string `json:"id,omitempty"`
 	GlobalAlias *string `json:"globalAlias,omitempty"`
 }
 
-// doRequest makes an HTTP request to the Garage API
+// doRequest makes an HTTP request to the Garage API.
 func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {
@@ -125,7 +125,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 	return resp, nil
 }
 
-// ListBuckets lists all buckets
+// ListBuckets lists all buckets.
 func (c *Client) ListBuckets(ctx context.Context) ([]Bucket, error) {
 	resp, err := c.doRequest(ctx, http.MethodGet, "/v2/ListBuckets", nil)
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *Client) ListBuckets(ctx context.Context) ([]Bucket, error) {
 	return buckets, nil
 }
 
-// GetBucketInfo gets information about a specific bucket
+// GetBucketInfo gets information about a specific bucket.
 func (c *Client) GetBucketInfo(ctx context.Context, req GetBucketInfoRequest) (*Bucket, error) {
 	// Build query parameters
 	path := "/v2/GetBucketInfo?"
@@ -179,7 +179,7 @@ func (c *Client) GetBucketInfo(ctx context.Context, req GetBucketInfoRequest) (*
 	return &bucket, nil
 }
 
-// CreateBucket creates a new bucket
+// CreateBucket creates a new bucket.
 func (c *Client) CreateBucket(ctx context.Context, req CreateBucketRequest) (*Bucket, error) {
 	resp, err := c.doRequest(ctx, http.MethodPost, "/v2/CreateBucket", req)
 	if err != nil {
@@ -200,7 +200,7 @@ func (c *Client) CreateBucket(ctx context.Context, req CreateBucketRequest) (*Bu
 	return &bucket, nil
 }
 
-// UpdateBucket updates an existing bucket
+// UpdateBucket updates an existing bucket.
 func (c *Client) UpdateBucket(ctx context.Context, bucketID string, req UpdateBucketRequest) (*Bucket, error) {
 	// The UpdateBucket endpoint requires the bucket ID as a query parameter
 	path := fmt.Sprintf("/v2/UpdateBucket?id=%s", bucketID)
@@ -224,7 +224,7 @@ func (c *Client) UpdateBucket(ctx context.Context, bucketID string, req UpdateBu
 	return &bucket, nil
 }
 
-// DeleteBucket deletes a bucket
+// DeleteBucket deletes a bucket.
 func (c *Client) DeleteBucket(ctx context.Context, req DeleteBucketRequest) error {
 	// Build query parameters
 	path := fmt.Sprintf("/v2/DeleteBucket?id=%s", req.ID)
@@ -243,7 +243,7 @@ func (c *Client) DeleteBucket(ctx context.Context, req DeleteBucketRequest) erro
 	return nil
 }
 
-// AddBucketAlias adds a global alias to a bucket
+// AddBucketAlias adds a global alias to a bucket.
 func (c *Client) AddBucketAlias(ctx context.Context, bucketID, alias string) error {
 	req := map[string]string{
 		"id":    bucketID,
@@ -264,7 +264,7 @@ func (c *Client) AddBucketAlias(ctx context.Context, bucketID, alias string) err
 	return nil
 }
 
-// RemoveBucketAlias removes a global alias from a bucket
+// RemoveBucketAlias removes a global alias from a bucket.
 func (c *Client) RemoveBucketAlias(ctx context.Context, bucketID, alias string) error {
 	req := map[string]string{
 		"id":    bucketID,

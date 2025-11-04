@@ -34,13 +34,13 @@ type BucketResource struct {
 
 // BucketResourceModel describes the resource data model.
 type BucketResourceModel struct {
-	ID                types.String `tfsdk:"id"`
-	GlobalAlias       types.String `tfsdk:"global_alias"`
-	WebsiteEnabled    types.Bool   `tfsdk:"website_enabled"`
-	WebsiteIndex      types.String `tfsdk:"website_index_document"`
-	WebsiteError      types.String `tfsdk:"website_error_document"`
-	MaxSize           types.Int64  `tfsdk:"max_size"`
-	MaxObjects        types.Int64  `tfsdk:"max_objects"`
+	ID             types.String `tfsdk:"id"`
+	GlobalAlias    types.String `tfsdk:"global_alias"`
+	WebsiteEnabled types.Bool   `tfsdk:"website_enabled"`
+	WebsiteIndex   types.String `tfsdk:"website_index_document"`
+	WebsiteError   types.String `tfsdk:"website_error_document"`
+	MaxSize        types.Int64  `tfsdk:"max_size"`
+	MaxObjects     types.Int64  `tfsdk:"max_objects"`
 }
 
 func (r *BucketResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -184,7 +184,7 @@ func (r *BucketResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	if needsUpdate {
-		bucket, err = r.client.UpdateBucket(ctx, bucket.ID, updateReq)
+		_, err = r.client.UpdateBucket(ctx, bucket.ID, updateReq)
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update bucket, got error: %s", err))
 			return
