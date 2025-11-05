@@ -10,8 +10,6 @@ description: |-
 
 Manages permissions for an access key on a Garage S3 bucket.
 
-This resource allows you to grant or revoke read, write, and owner permissions for access keys on specific buckets.
-
 ## Example Usage
 
 ```terraform
@@ -47,47 +45,30 @@ resource "garage_bucket_permission" "example" {
   owner         = false
 }
 
-# Grant owner permissions (includes read and write)
-resource "garage_bucket_permission" "owner" {
-  bucket_id     = garage_bucket.example.id
-  access_key_id = garage_key.example.id
-  read          = true
-  write         = true
-  owner         = true
-}
-
-# Read-only access
+# Example: Read-only access
 resource "garage_bucket_permission" "readonly" {
-  bucket_id     = garage_bucket.another.id
-  access_key_id = garage_key.example.id
+  bucket_id     = garage_bucket.example.id
+  access_key_id = garage_key.readonly.id
   read          = true
   write         = false
   owner         = false
 }
 
-# Multiple keys with different permissions on the same bucket
+resource "garage_key" "readonly" {
+  name = "readonly-key"
+}
+
+# Example: Owner access (full permissions)
 resource "garage_key" "admin" {
   name = "admin-key"
 }
 
-resource "garage_key" "readonly_user" {
-  name = "readonly-key"
-}
-
-resource "garage_bucket_permission" "admin_access" {
+resource "garage_bucket_permission" "admin" {
   bucket_id     = garage_bucket.example.id
   access_key_id = garage_key.admin.id
   read          = true
   write         = true
   owner         = true
-}
-
-resource "garage_bucket_permission" "readonly_access" {
-  bucket_id     = garage_bucket.example.id
-  access_key_id = garage_key.readonly_user.id
-  read          = true
-  write         = false
-  owner         = false
 }
 ```
 
@@ -116,43 +97,8 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
+#!/bin/bash
+
 # Garage bucket permissions can be imported using the format: bucket_id/access_key_id
 terraform import garage_bucket_permission.example bucket-id/access-key-id
 ```
-
-## Permission Types
-
-### Read Permission
-Grants the ability to:
-- List objects in the bucket
-- Download objects from the bucket
-- Read bucket metadata
-
-### Write Permission
-Grants the ability to:
-- Upload objects to the bucket
-- Delete objects from the bucket
-- Modify object metadata
-
-### Owner Permission
-Grants the ability to:
-- Perform all read and write operations
-- Modify bucket settings
-- Grant permissions to other access keys
-- Delete the bucket
-
-**Note:** Owner permission typically requires both `read` and `write` to be `true` as well.
-
-## Behavior
-
-- **Create**: Grants the specified permissions to the access key on the bucket
-- **Update**: Modifies permissions by granting or revoking individual permission types
-- **Delete**: Revokes all permissions from the access key on the bucket
-- **Import**: Imports existing bucket permissions using the `bucket_id/access_key_id` format
-
-## Notes
-
-- Both the bucket and access key must exist before creating a permission resource
-- Changing `bucket_id` or `access_key_id` will force recreation of the resource
-- Permission changes are applied incrementally - you can grant or revoke individual permissions without affecting others
-- Deleting the permission resource revokes all permissions but does not delete the bucket or access key

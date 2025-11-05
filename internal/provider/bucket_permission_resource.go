@@ -148,7 +148,7 @@ func (r *BucketPermissionResource) Create(ctx context.Context, req resource.Crea
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", data.BucketID.ValueString(), data.AccessKeyID.ValueString()))
 
 	// Update state from bucket info to ensure consistency
-	r.updateStateFromBucket(ctx, &data, bucket)
+	r.updateStateFromBucket(&data, bucket)
 
 	tflog.Trace(ctx, "Created bucket permission resource")
 
@@ -180,7 +180,7 @@ func (r *BucketPermissionResource) Read(ctx context.Context, req resource.ReadRe
 	}
 
 	// Update state from bucket info
-	r.updateStateFromBucket(ctx, &data, bucket)
+	r.updateStateFromBucket(&data, bucket)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -258,7 +258,7 @@ func (r *BucketPermissionResource) Update(ctx context.Context, req resource.Upda
 
 	// Update state from bucket info to ensure consistency
 	if bucket != nil {
-		r.updateStateFromBucket(ctx, &data, bucket)
+		r.updateStateFromBucket(&data, bucket)
 	}
 
 	tflog.Trace(ctx, "Updated bucket permission resource")
@@ -317,8 +317,8 @@ func (r *BucketPermissionResource) ImportState(ctx context.Context, req resource
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("access_key_id"), accessKeyID)...)
 }
 
-// updateStateFromBucket updates the resource state from bucket info
-func (r *BucketPermissionResource) updateStateFromBucket(ctx context.Context, data *BucketPermissionResourceModel, bucket *client.Bucket) {
+// updateStateFromBucket updates the resource state from bucket info.
+func (r *BucketPermissionResource) updateStateFromBucket(data *BucketPermissionResourceModel, bucket *client.Bucket) {
 	// Find the permissions for this access key in the bucket info
 	accessKeyID := data.AccessKeyID.ValueString()
 	found := false
@@ -341,7 +341,7 @@ func (r *BucketPermissionResource) updateStateFromBucket(ctx context.Context, da
 	}
 }
 
-// parseImportID parses an import ID in the format "bucket_id/access_key_id"
+// parseImportID parses an import ID in the format "bucket_id/access_key_id".
 func parseImportID(id string) (bucketID, accessKeyID string, ok bool) {
 	for i := 0; i < len(id); i++ {
 		if id[i] == '/' {

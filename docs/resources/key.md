@@ -10,8 +10,6 @@ description: |-
 
 Manages a Garage access key.
 
-Access keys are used to authenticate S3 API requests. Each key has an access key ID and a secret access key, similar to AWS IAM access keys.
-
 ## Example Usage
 
 ```terraform
@@ -33,48 +31,18 @@ resource "garage_key" "example" {
   name = "my-application-key"
 }
 
-# Access key without a name (API will use the key ID)
+# Access key without a name
 resource "garage_key" "unnamed" {
 }
 
-# Create a key and grant it bucket permissions
-resource "garage_bucket" "example" {
-  global_alias = "my-bucket"
-}
-
-resource "garage_key" "app" {
-  name = "application-key"
-}
-
-resource "garage_bucket_permission" "app_access" {
-  bucket_id     = garage_bucket.example.id
-  access_key_id = garage_key.app.id
-  read          = true
-  write         = true
-  owner         = false
-}
-
-# Output the credentials (use with caution!)
+# Output the credentials
 output "access_key_id" {
-  value = garage_key.app.id
+  value = garage_key.example.id
 }
 
 output "secret_access_key" {
-  value     = garage_key.app.secret_access_key
+  value     = garage_key.example.secret_access_key
   sensitive = true
-}
-
-# Multiple keys for different purposes
-resource "garage_key" "admin" {
-  name = "admin-key"
-}
-
-resource "garage_key" "readonly" {
-  name = "readonly-key"
-}
-
-resource "garage_key" "backup" {
-  name = "backup-service-key"
 }
 ```
 
@@ -97,110 +65,8 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
+#!/bin/bash
+
 # Garage access keys can be imported using the access key ID
 terraform import garage_key.example GKxxxxxxxxxxxxxxxxxxxx
 ```
-
-**Note:** When importing an existing key, the `secret_access_key` will not be available as it's only returned when the key is created. The imported key will still work, but the secret won't be in the Terraform state.
-
-## Attributes
-
-### Access Key ID (`id`)
-The unique identifier for the access key. This is used with S3 API requests and follows the format `GKxxxxxxxxxxxxxxxxxxxx`.
-
-### Secret Access Key (`secret_access_key`)
-The secret key used to sign S3 API requests. This value is:
-- **Only available on creation** - The Garage API only returns the secret when the key is first created
-- **Sensitive** - Marked as sensitive in Terraform to prevent accidental exposure in logs
-- **Not available after import** - If you import an existing key, the secret won't be populated
-- **Stored in state** - The secret is stored in your Terraform state file, so protect your state accordingly
-
-### Name (`name`)
-An optional human-friendly name to help identify the key. If not provided, the key will still be created but may use the key ID as the name.
-
-## Security Considerations
-
-### Protecting Secrets
-- The `secret_access_key` is stored in your Terraform state file
-- Use [remote state](https://developer.hashicorp.com/terraform/language/state/remote) with encryption
-- Restrict access to state files using appropriate IAM/RBAC policies
-- Consider using Terraform Cloud or similar services for enhanced state security
-
-### Secret Rotation
-To rotate an access key:
-1. Create a new `garage_key` resource
-2. Update your application to use the new credentials
-3. Verify the new key works
-4. Remove or destroy the old `garage_key` resource
-
-Example:
-```terraform
-# Old key (to be rotated)
-resource "garage_key" "app_v1" {
-  name = "application-key-v1"
-}
-
-# New key
-resource "garage_key" "app_v2" {
-  name = "application-key-v2"
-}
-
-# Grant same permissions to both keys during rotation
-resource "garage_bucket_permission" "app_v1_access" {
-  bucket_id     = garage_bucket.example.id
-  access_key_id = garage_key.app_v1.id
-  read          = true
-  write         = true
-}
-
-resource "garage_bucket_permission" "app_v2_access" {
-  bucket_id     = garage_bucket.example.id
-  access_key_id = garage_key.app_v2.id
-  read          = true
-  write         = true
-}
-
-# After verifying v2 works, remove app_v1 resources
-```
-
-## Behavior
-
-- **Create**: Creates a new access key and returns both the access key ID and secret access key
-- **Read**: Fetches key information from the API (secret is not returned)
-- **Update**: Currently a no-op (key name can't be changed via the API)
-- **Delete**: Permanently deletes the access key
-- **Import**: Imports an existing key (secret not available)
-
-## Using with S3 Clients
-
-Once you have created an access key, use it with any S3-compatible client:
-
-```bash
-# AWS CLI
-export AWS_ACCESS_KEY_ID=$(terraform output -raw access_key_id)
-export AWS_SECRET_ACCESS_KEY=$(terraform output -raw secret_access_key)
-export AWS_ENDPOINT_URL=http://localhost:3900
-
-aws s3 ls s3://my-bucket/
-```
-
-```python
-# Python boto3
-import boto3
-
-s3 = boto3.client(
-    's3',
-    endpoint_url='http://localhost:3900',
-    aws_access_key_id='GKxxxxxxxxxxxxxxxxxxxx',
-    aws_secret_access_key='xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-)
-
-s3.list_objects_v2(Bucket='my-bucket')
-```
-
-## Notes
-
-- Access keys are independent of buckets - create them separately and use `garage_bucket_permission` to grant access
-- The secret access key cannot be retrieved after initial creation
-- Deleting a key revokes all its bucket permissions
-- Keys can be created with or without a name
