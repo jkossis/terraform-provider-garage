@@ -183,6 +183,96 @@ resource "garage_bucket" "limited" {
 
 - `id` (String) - The unique identifier of the bucket
 
+#### `garage_key`
+
+Manages a Garage access key for S3 API authentication.
+
+**Example Usage:**
+
+```hcl
+# Create an access key
+resource "garage_key" "app" {
+  name = "my-application"
+}
+
+# Output credentials (use caution with secrets!)
+output "access_key_id" {
+  value = garage_key.app.id
+}
+
+output "secret_access_key" {
+  value     = garage_key.app.secret_access_key
+  sensitive = true
+}
+```
+
+**Schema:**
+
+- `name` (Optional, String) - A human-friendly name for the access key
+
+**Computed Attributes:**
+
+- `id` (String) - The access key ID
+- `secret_access_key` (String, Sensitive) - The secret access key (only available on creation)
+
+**Note:** The secret access key is only returned when the key is created. It's not available via the API after creation, so it won't be populated when importing an existing key.
+
+#### `garage_bucket_permission`
+
+Manages permissions for an access key on a bucket.
+
+**Example Usage:**
+
+```hcl
+# Create bucket and key
+resource "garage_bucket" "data" {
+  global_alias = "app-data"
+}
+
+resource "garage_key" "app" {
+  name = "application-key"
+}
+
+# Grant read/write permissions
+resource "garage_bucket_permission" "app_access" {
+  bucket_id     = garage_bucket.data.id
+  access_key_id = garage_key.app.id
+  read          = true
+  write         = true
+  owner         = false
+}
+
+# Read-only access for another key
+resource "garage_key" "readonly" {
+  name = "readonly-key"
+}
+
+resource "garage_bucket_permission" "readonly_access" {
+  bucket_id     = garage_bucket.data.id
+  access_key_id = garage_key.readonly.id
+  read          = true
+  write         = false
+  owner         = false
+}
+```
+
+**Schema:**
+
+- `bucket_id` (Required, String) - The ID of the bucket. Changing this forces a new resource.
+- `access_key_id` (Required, String) - The ID of the access key. Changing this forces a new resource.
+- `read` (Optional, Bool) - Grant read permission. Default: `false`
+- `write` (Optional, Bool) - Grant write permission. Default: `false`
+- `owner` (Optional, Bool) - Grant owner permission. Default: `false`
+
+**Computed Attributes:**
+
+- `id` (String) - The unique identifier (format: `bucket_id/access_key_id`)
+
+**Permission Types:**
+- **Read**: List objects, download objects, read metadata
+- **Write**: Upload objects, delete objects, modify metadata
+- **Owner**: All read/write operations plus bucket management and permission grants
+
 ### Data Sources
 
 #### `garage_bucket`
@@ -239,6 +329,8 @@ Check out the [examples](./examples/) directory for more configurations:
 
 - [Basic Provider Configuration](./examples/provider/provider.tf)
 - [Bucket Resource Examples](./examples/resources/garage_bucket/resource.tf)
+- [Access Key Resource Examples](./examples/resources/garage_key/resource.tf)
+- [Bucket Permission Resource Examples](./examples/resources/garage_bucket_permission/resource.tf)
 - [Bucket Data Source Examples](./examples/data-sources/garage_bucket/data-source.tf)
 
 ## Troubleshooting

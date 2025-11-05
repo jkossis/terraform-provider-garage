@@ -98,6 +98,54 @@ type GetBucketInfoRequest struct {
 	GlobalAlias *string `json:"globalAlias,omitempty"`
 }
 
+// BucketKeyPermRequest represents the request to allow or deny bucket key permissions.
+type BucketKeyPermRequest struct {
+	BucketID    string      `json:"bucketId"`
+	AccessKeyID string      `json:"accessKeyId"`
+	Permissions Permissions `json:"permissions"`
+}
+
+// AccessKey represents a Garage access key.
+type AccessKey struct {
+	AccessKeyID     string          `json:"accessKeyId"`
+	Name            string          `json:"name"`
+	Expired         bool            `json:"expired"`
+	Created         *string         `json:"created,omitempty"`
+	Expiration      *string         `json:"expiration,omitempty"`
+	SecretAccessKey *string         `json:"secretAccessKey,omitempty"`
+	Permissions     KeyPermissions  `json:"permissions"`
+	Buckets         []KeyBucketInfo `json:"buckets"`
+}
+
+// KeyPermissions represents the permissions a key has.
+type KeyPermissions struct {
+	CreateBucket bool `json:"createBucket"`
+}
+
+// KeyBucketInfo represents bucket information associated with a key.
+type KeyBucketInfo struct {
+	ID            string      `json:"id"`
+	GlobalAliases []string    `json:"globalAliases"`
+	LocalAliases  []string    `json:"localAliases"`
+	Permissions   Permissions `json:"permissions"`
+}
+
+// CreateKeyRequest represents the request to create an access key.
+type CreateKeyRequest struct {
+	Name       *string `json:"name,omitempty"`
+	Expiration *string `json:"expiration,omitempty"`
+}
+
+// DeleteKeyRequest represents the request to delete an access key.
+type DeleteKeyRequest struct {
+	ID string `json:"id"`
+}
+
+// GetKeyInfoRequest represents the request to get key info.
+type GetKeyInfoRequest struct {
+	ID string `json:"id"`
+}
+
 // doRequest makes an HTTP request to the Garage API.
 func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
@@ -272,6 +320,114 @@ func (c *Client) RemoveBucketAlias(ctx context.Context, bucketID, alias string) 
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodPost, "/v2/RemoveBucketAlias", req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// AllowBucketKey grants permissions for an access key on a bucket.
+func (c *Client) AllowBucketKey(ctx context.Context, req BucketKeyPermRequest) (*Bucket, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/v2/AllowBucketKey", req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var bucket Bucket
+	if err := json.NewDecoder(resp.Body).Decode(&bucket); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &bucket, nil
+}
+
+// DenyBucketKey revokes permissions for an access key on a bucket.
+func (c *Client) DenyBucketKey(ctx context.Context, req BucketKeyPermRequest) (*Bucket, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/v2/DenyBucketKey", req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var bucket Bucket
+	if err := json.NewDecoder(resp.Body).Decode(&bucket); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &bucket, nil
+}
+
+// CreateKey creates a new access key.
+func (c *Client) CreateKey(ctx context.Context, req CreateKeyRequest) (*AccessKey, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/v2/CreateKey", req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var key AccessKey
+	if err := json.NewDecoder(resp.Body).Decode(&key); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &key, nil
+}
+
+// GetKeyInfo gets information about a specific access key.
+func (c *Client) GetKeyInfo(ctx context.Context, req GetKeyInfoRequest) (*AccessKey, error) {
+	path := fmt.Sprintf("/v2/GetKeyInfo?id=%s", req.ID)
+
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var key AccessKey
+	if err := json.NewDecoder(resp.Body).Decode(&key); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &key, nil
+}
+
+// DeleteKey deletes an access key.
+func (c *Client) DeleteKey(ctx context.Context, req DeleteKeyRequest) error {
+	path := fmt.Sprintf("/v2/DeleteKey?id=%s", req.ID)
+
+	resp, err := c.doRequest(ctx, http.MethodPost, path, nil)
 	if err != nil {
 		return err
 	}
