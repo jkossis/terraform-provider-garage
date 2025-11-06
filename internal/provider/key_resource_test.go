@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// generateGarageKeyID generates a random Garage key ID (GK + 24 hex characters)
+// generateGarageKeyID generates a random Garage key ID (GK + 24 hex characters).
 func generateGarageKeyID() string {
 	bytes := make([]byte, 12) // 12 bytes = 24 hex characters
 	if _, err := rand.Read(bytes); err != nil {
@@ -22,7 +22,7 @@ func generateGarageKeyID() string {
 	return "GK" + hex.EncodeToString(bytes)
 }
 
-// generateGarageSecret generates a random secret key (64 hex characters)
+// generateGarageSecret generates a random secret key (64 hex characters).
 func generateGarageSecret() string {
 	bytes := make([]byte, 32) // 32 bytes = 64 hex characters
 	if _, err := rand.Read(bytes); err != nil {
