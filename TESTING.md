@@ -41,7 +41,7 @@ go test ./internal/client -v
 --- PASS: TestListBuckets (0.00s)
 ...
 PASS
-ok      terraform-provider-garage/internal/client       0.221s
+ok      github.com/jkossis/terraform-provider-garage/garage/client       0.221s
 ```
 
 ## Acceptance Tests
