@@ -1,4 +1,4 @@
-module terraform-provider-garage
+module github.com/jkossis/terraform-provider-garage
 
 go 1.24.0
 

@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/garage/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -104,8 +104,8 @@ func (r *KeyResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 
 	// Determine whether to use ImportKey or CreateKey
-	hasID := !data.ID.IsNull() && !data.ID.IsUnknown()
-	hasSecret := !data.SecretAccessKey.IsNull() && !data.SecretAccessKey.IsUnknown()
+	hasID := data.ID.ValueString() != ""
+	hasSecret := data.SecretAccessKey.ValueString() != ""
 
 	// If both ID and secret are provided, use ImportKey
 	if hasID && hasSecret {

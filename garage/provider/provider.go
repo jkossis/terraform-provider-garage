@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/garage/client"
 )
 
 // Ensure GarageProvider satisfies various provider interfaces.
