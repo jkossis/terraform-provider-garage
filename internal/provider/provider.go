@@ -123,6 +123,7 @@ func (p *GarageProvider) EphemeralResources(ctx context.Context) []func() epheme
 func (p *GarageProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewBucketDataSource,
+		NewKeyDataSource,
 	}
 }
 
