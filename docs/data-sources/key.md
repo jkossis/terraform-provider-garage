@@ -39,12 +39,13 @@ data "garage_key" "example" {
 # Use data source output
 output "key_info" {
   value = {
-    id           = data.garage_key.example.id
-    name         = data.garage_key.example.name
-    expired      = data.garage_key.example.expired
-    created      = data.garage_key.example.created
-    expiration   = data.garage_key.example.expiration
-    create_bucket = data.garage_key.example.create_bucket
+    id              = data.garage_key.example.id
+    name            = data.garage_key.example.name
+    expired         = data.garage_key.example.expired
+    created         = data.garage_key.example.created
+    expiration      = data.garage_key.example.expiration
+    secret_access_key = data.garage_key.example.secret_access_key
+    create_bucket   = data.garage_key.example.create_bucket
   }
 }
 ```
@@ -63,3 +64,5 @@ output "key_info" {
 - `expiration` (String) The date and time the access key expires, if set.
 - `expired` (Boolean) Whether the access key has expired.
 - `name` (String) A human-friendly name for the access key.
+
+-> The `secret_access_key` is intentionally omitted from this data source. The Garage Admin API only returns it during key creation or import via the `garage_key` resource. The `GetKeyInfo` endpoint, which backs this data source, does not expose it.

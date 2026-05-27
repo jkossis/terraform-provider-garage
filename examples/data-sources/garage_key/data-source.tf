@@ -24,11 +24,11 @@ data "garage_key" "example" {
 # Use data source output
 output "key_info" {
   value = {
-    id           = data.garage_key.example.id
-    name         = data.garage_key.example.name
-    expired      = data.garage_key.example.expired
-    created      = data.garage_key.example.created
-    expiration   = data.garage_key.example.expiration
+    id            = data.garage_key.example.id
+    name          = data.garage_key.example.name
+    expired       = data.garage_key.example.expired
+    created       = data.garage_key.example.created
+    expiration    = data.garage_key.example.expiration
     create_bucket = data.garage_key.example.create_bucket
   }
 }
