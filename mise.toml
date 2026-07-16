@@ -5,5 +5,5 @@ terraform = "1.15.8"
 
 [tasks.testacc]
 description = "Run acceptance tests with credentials from the environment or mise.local.toml."
-run = "go test -race -count=1 ./..."
+run = "make testacc"
 env = { TF_ACC = "1" }
