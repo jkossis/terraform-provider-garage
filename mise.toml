@@ -2,3 +2,8 @@
 go = "1.25.8"
 terraform = "1.15.8"
 "aqua:golangci/golangci-lint" = "2.12.2"
+
+[tasks.testacc]
+description = "Run acceptance tests with credentials from the environment or mise.local.toml."
+run = "go test -race -count=1 ./..."
+env = { TF_ACC = "1" }

@@ -205,17 +205,16 @@ To run the full suite of acceptance tests, you'll need a running Garage instance
 Set up your acceptance-test environment:
 
 ```bash
-export TF_ACC=1
 export GARAGE_ENDPOINT="http://localhost:3903"
 export GARAGE_TOKEN="your-test-admin-token"
 ```
 
-If `TF_ACC` is unset, acceptance tests are skipped. When `TF_ACC=1`, both `GARAGE_ENDPOINT` and `GARAGE_TOKEN` must be set.
+`mise run testacc` sets `TF_ACC=1`; both `GARAGE_ENDPOINT` and `GARAGE_TOKEN` must be set. Put local credentials in ignored `mise.local.toml` or export them in your shell.
 
 Then run the tests:
 
 ```bash
-make testacc
+mise run testacc
 ```
 
 ## License
