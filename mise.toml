@@ -1,3 +1,4 @@
 [tools]
-go = "latest"
-terraform = "latest"
+go = "1.25.8"
+terraform = "1.15.8"
+"aqua:golangci/golangci-lint" = "2.12.2"

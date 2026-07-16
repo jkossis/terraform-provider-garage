@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -16,7 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/internal/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -43,7 +44,7 @@ type BucketPermissionResourceModel struct {
 }
 
 func (r *BucketPermissionResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_bucket_permission"
+	resp.TypeName = typeNamePrefix + "_bucket_permission"
 }
 
 func (r *BucketPermissionResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -343,10 +344,10 @@ func (r *BucketPermissionResource) updateStateFromBucket(data *BucketPermissionR
 
 // parseImportID parses an import ID in the format "bucket_id/access_key_id".
 func parseImportID(id string) (bucketID, accessKeyID string, ok bool) {
-	for i := 0; i < len(id); i++ {
-		if id[i] == '/' {
-			return id[:i], id[i+1:], true
-		}
+	parts := strings.Split(id, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
 	}
-	return "", "", false
+
+	return parts[0], parts[1], true
 }

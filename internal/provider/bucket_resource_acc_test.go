@@ -4,10 +4,12 @@
 package provider
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccBucketResource_basic(t *testing.T) {
@@ -148,6 +150,8 @@ func TestAccBucketResource_full(t *testing.T) {
 }
 
 func TestAccBucketResource_nameChange(t *testing.T) {
+	var originalBucketID string
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -157,6 +161,7 @@ func TestAccBucketResource_nameChange(t *testing.T) {
 				Config: testAccBucketResourceConfig_basic("test-bucket-original"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("garage_bucket.test", "global_alias", "test-bucket-original"),
+					recordBucketID(&originalBucketID),
 				),
 			},
 			// Change name (should force replacement)
@@ -164,10 +169,37 @@ func TestAccBucketResource_nameChange(t *testing.T) {
 				Config: testAccBucketResourceConfig_basic("test-bucket-renamed"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("garage_bucket.test", "global_alias", "test-bucket-renamed"),
+					checkBucketIDReplaced(originalBucketID),
 				),
 			},
 		},
 	})
+}
+
+func recordBucketID(destination *string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		resourceState, ok := state.RootModule().Resources["garage_bucket.test"]
+		if !ok {
+			return errors.New("garage_bucket.test is missing from state")
+		}
+
+		*destination = resourceState.Primary.ID
+		return nil
+	}
+}
+
+func checkBucketIDReplaced(previous string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		resourceState, ok := state.RootModule().Resources["garage_bucket.test"]
+		if !ok {
+			return errors.New("garage_bucket.test is missing from state")
+		}
+		if previous == "" || resourceState.Primary.ID == previous {
+			return fmt.Errorf("bucket ID = %q, want replacement of %q", resourceState.Primary.ID, previous)
+		}
+
+		return nil
+	}
 }
 
 // Test configuration functions

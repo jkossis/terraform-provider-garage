@@ -9,10 +9,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/internal/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -43,7 +45,7 @@ type BucketDataSourceModel struct {
 }
 
 func (d *BucketDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_bucket"
+	resp.TypeName = typeNamePrefix + "_bucket"
 }
 
 func (d *BucketDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -130,12 +132,8 @@ func (d *BucketDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	// Validate that either ID or GlobalAlias is provided
-	if data.ID.IsNull() && data.GlobalAlias.IsNull() {
-		resp.Diagnostics.AddError(
-			"Missing Required Attribute",
-			"Either 'id' or 'global_alias' must be specified.",
-		)
+	resp.Diagnostics.Append(validateBucketDataSourceSelector(data)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -226,4 +224,40 @@ func (d *BucketDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	tflog.Trace(ctx, "Read bucket data source")
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func validateBucketDataSourceSelector(data BucketDataSourceModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	if data.ID.IsUnknown() {
+		diags.AddAttributeError(path.Root("id"), "Unknown Bucket ID", "The id selector must be known when reading a bucket.")
+	}
+	if data.GlobalAlias.IsUnknown() {
+		diags.AddAttributeError(path.Root("global_alias"), "Unknown Bucket Global Alias", "The global_alias selector must be known when reading a bucket.")
+	}
+	if diags.HasError() {
+		return diags
+	}
+
+	idSet := !data.ID.IsNull()
+	aliasSet := !data.GlobalAlias.IsNull()
+	if idSet && data.ID.ValueString() == "" {
+		diags.AddAttributeError(path.Root("id"), "Empty Bucket ID", "The id selector must not be empty.")
+	}
+	if aliasSet && data.GlobalAlias.ValueString() == "" {
+		diags.AddAttributeError(path.Root("global_alias"), "Empty Bucket Global Alias", "The global_alias selector must not be empty.")
+	}
+	if diags.HasError() {
+		return diags
+	}
+
+	if !idSet && !aliasSet {
+		diags.AddAttributeError(path.Root("id"), "Missing Bucket Selector", "Specify exactly one of id or global_alias.")
+	}
+	if idSet && aliasSet {
+		diags.AddAttributeError(path.Root("id"), "Conflicting Bucket Selectors", "Specify exactly one of id or global_alias.")
+		diags.AddAttributeError(path.Root("global_alias"), "Conflicting Bucket Selectors", "Specify exactly one of id or global_alias.")
+	}
+
+	return diags
 }

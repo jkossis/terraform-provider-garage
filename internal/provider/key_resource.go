@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/internal/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -39,7 +39,7 @@ type KeyResourceModel struct {
 }
 
 func (r *KeyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_key"
+	resp.TypeName = typeNamePrefix + "_key"
 }
 
 func (r *KeyResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -60,6 +60,9 @@ func (r *KeyResource) Schema(ctx context.Context, req resource.SchemaRequest, re
 				Optional:            true,
 				Computed:            true,
 				MarkdownDescription: "A human-friendly name for the access key.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"secret_access_key": schema.StringAttribute{
 				Optional:            true,
@@ -204,20 +207,10 @@ func (r *KeyResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 }
 
 func (r *KeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data KeyResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Note: UpdateKey is available in the API but we're not implementing it for now
-	// The name field is optional and computed, so updates aren't critical for tests
-
-	tflog.Trace(ctx, "Updated access key resource (no-op)")
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.AddError(
+		"Unsupported Access Key Update",
+		"Garage access key updates are not supported. Changes to access key attributes replace the resource.",
+	)
 }
 
 func (r *KeyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

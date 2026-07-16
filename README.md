@@ -19,7 +19,7 @@ Garage is an S3-compatible distributed object storage service designed for self-
 ## Requirements
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.24 (for development)
+- [Go](https://go.dev/doc/install) >= 1.25.8 (for development)
 - [Garage](https://garagehq.deuxfleurs.fr/) >= 0.9.0 with Admin API v2 enabled
 
 ## Quick Start
@@ -113,7 +113,7 @@ The provider requires two configuration values:
 - `endpoint` - The URL of your Garage Admin API endpoint (default port: 3903)
 - `token` - Your Garage admin API bearer token
 
-These can be configured in three ways:
+These can be configured in three ways. Values set in the provider block take precedence. Environment variables are used only when the corresponding provider attribute is omitted; explicit empty or unknown values are errors.
 
 #### 1. In the provider block:
 
@@ -131,7 +131,7 @@ export GARAGE_ENDPOINT="http://localhost:3903"
 export GARAGE_TOKEN="your-admin-token-here"
 ```
 
-#### 3. Mixed approach (environment variables override provider config):
+#### 3. Mixed approach (environment variable fallback):
 
 ```hcl
 provider "garage" {
@@ -140,201 +140,16 @@ provider "garage" {
 }
 ```
 
-### Resources
+### Resources and Data Sources
 
-#### `garage_bucket`
+Generated documentation is the authoritative schema reference:
 
-Manages a Garage S3 bucket.
+- [`garage_bucket` resource](./docs/resources/bucket.md)
+- [`garage_key` resource](./docs/resources/key.md)
+- [`garage_bucket_permission` resource](./docs/resources/bucket_permission.md)
+- [`garage_bucket` data source](./docs/data-sources/bucket.md)
 
-**Example Usage:**
-
-```hcl
-# Basic bucket
-resource "garage_bucket" "example" {
-  global_alias = "my-bucket"
-}
-
-# Bucket with website hosting
-resource "garage_bucket" "website" {
-  global_alias             = "my-website"
-  website_enabled          = true
-  website_index_document   = "index.html"
-  website_error_document   = "error.html"
-}
-
-# Bucket with quotas
-resource "garage_bucket" "limited" {
-  global_alias = "limited-bucket"
-  max_size     = 1073741824  # 1 GB in bytes
-  max_objects  = 10000
-}
-```
-
-**Schema:**
-
-- `global_alias` (Required, String) - The global alias (name) for the bucket. Changing this forces a new resource.
-- `website_enabled` (Optional, Bool) - Enable website hosting for this bucket. Default: `false`
-- `website_index_document` (Optional, String) - The index document for website hosting (e.g., 'index.html')
-- `website_error_document` (Optional, String) - The error document for website hosting (e.g., 'error.html')
-- `max_size` (Optional, Int64) - Maximum size of the bucket in bytes. Leave unset for unlimited.
-- `max_objects` (Optional, Int64) - Maximum number of objects in the bucket. Leave unset for unlimited.
-
-**Computed Attributes:**
-
-- `id` (String) - The unique identifier of the bucket
-
-#### `garage_key`
-
-Manages a Garage access key for S3 API authentication.
-
-**Example Usage:**
-
-```hcl
-# Create an auto-generated access key
-resource "garage_key" "app" {
-  name = "my-application"
-}
-
-# Import a key with predefined credentials
-resource "garage_key" "imported" {
-  id                = "GK31c2f218a2e44f485b94239e"
-  secret_access_key = "7d37d093435a75809f8f090b072de87928d1c355db9d9340431b28e776374705"
-  name              = "imported-key"
-}
-
-# Output credentials (use caution with secrets!)
-output "access_key_id" {
-  value = garage_key.app.id
-}
-
-output "secret_access_key" {
-  value     = garage_key.app.secret_access_key
-  sensitive = true
-}
-```
-
-**Schema:**
-
-- `id` (Optional, String) - The access key ID. If provided along with `secret_access_key`, the key will be imported with predefined credentials. If not provided, one will be generated. Changing this forces a new resource.
-- `name` (Optional, String) - A human-friendly name for the access key
-- `secret_access_key` (Optional, String, Sensitive) - The secret access key. If provided along with `id`, the key will be imported with predefined credentials. If not provided, one will be generated. Changing this forces a new resource.
-
-**Computed Attributes:**
-
-- `id` (String) - The access key ID (computed when not provided)
-- `secret_access_key` (String, Sensitive) - The secret access key (computed when not provided, only available on creation)
-
-**Important Notes:**
-- **Importing Keys**: To import a key with predefined credentials, both `id` and `secret_access_key` must be provided together. Providing only one will result in an error.
-- **Auto-generation**: When neither `id` nor `secret_access_key` are provided, Garage will automatically generate both values.
-- **Secret Availability**: The secret access key is only returned when the key is created. It's not available via the API after creation, so it won't be populated when using Terraform's `import` command to import an existing key.
-- **Immutability**: Both `id` and `secret_access_key` are immutable. Changing either value will force the creation of a new resource.
-
-#### `garage_bucket_permission`
-
-Manages permissions for an access key on a bucket.
-
-**Example Usage:**
-
-```hcl
-# Create bucket and key
-resource "garage_bucket" "data" {
-  global_alias = "app-data"
-}
-
-resource "garage_key" "app" {
-  name = "application-key"
-}
-
-# Grant read/write permissions
-resource "garage_bucket_permission" "app_access" {
-  bucket_id     = garage_bucket.data.id
-  access_key_id = garage_key.app.id
-  read          = true
-  write         = true
-  owner         = false
-}
-
-# Read-only access for another key
-resource "garage_key" "readonly" {
-  name = "readonly-key"
-}
-
-resource "garage_bucket_permission" "readonly_access" {
-  bucket_id     = garage_bucket.data.id
-  access_key_id = garage_key.readonly.id
-  read          = true
-  write         = false
-  owner         = false
-}
-```
-
-**Schema:**
-
-- `bucket_id` (Required, String) - The ID of the bucket. Changing this forces a new resource.
-- `access_key_id` (Required, String) - The ID of the access key. Changing this forces a new resource.
-- `read` (Optional, Bool) - Grant read permission. Default: `false`
-- `write` (Optional, Bool) - Grant write permission. Default: `false`
-- `owner` (Optional, Bool) - Grant owner permission. Default: `false`
-
-**Computed Attributes:**
-
-- `id` (String) - The unique identifier (format: `bucket_id/access_key_id`)
-
-**Permission Types:**
-- **Read**: List objects, download objects, read metadata
-- **Write**: Upload objects, delete objects, modify metadata
-- **Owner**: All read/write operations plus bucket management and permission grants
-
-### Data Sources
-
-#### `garage_bucket`
-
-Retrieves information about an existing Garage bucket.
-
-**Example Usage:**
-
-```hcl
-# Look up bucket by global alias
-data "garage_bucket" "example" {
-  global_alias = "my-bucket"
-}
-
-# Look up bucket by ID
-data "garage_bucket" "by_id" {
-  id = "8d7c3c6e-7b9d-4c3a-9f2e-1a5b6c7d8e9f"
-}
-
-# Use data source output
-output "bucket_info" {
-  value = {
-    id      = data.garage_bucket.example.id
-    objects = data.garage_bucket.example.objects
-    bytes   = data.garage_bucket.example.bytes
-  }
-}
-```
-
-**Schema:**
-
-Either `id` or `global_alias` must be specified.
-
-- `id` (Optional, String) - The unique identifier of the bucket
-- `global_alias` (Optional, String) - The primary global alias (name) of the bucket
-
-**Computed Attributes:**
-
-- `id` (String) - The unique identifier of the bucket
-- `global_alias` (String) - The primary global alias of the bucket
-- `global_aliases` (List of String) - All global aliases for this bucket
-- `website_enabled` (Bool) - Whether website hosting is enabled
-- `website_index_document` (String) - The index document for website hosting
-- `website_error_document` (String) - The error document for website hosting
-- `max_size` (Int64) - Maximum size of the bucket in bytes
-- `max_objects` (Int64) - Maximum number of objects in the bucket
-- `objects` (Int64) - Current number of objects in the bucket
-- `bytes` (Int64) - Current size of the bucket in bytes
-- `unfinished_uploads` (Int64) - Number of unfinished multipart uploads
+Changing an access key `name` replaces the key. Bucket permission imports must use exactly `bucket_id/access_key_id`.
 
 ## Examples
 
@@ -383,14 +198,19 @@ To generate or update documentation, run `go generate`.
 
 ### Testing
 
+Fast local provider tests do not require Garage credentials. They cover provider configuration precedence and diagnostics, key replacement schema behavior, bucket recovery and refresh state behavior, bucket permission import validation, and bucket data-source selector validation.
+
 To run the full suite of acceptance tests, you'll need a running Garage instance with Admin API v2 enabled.
 
-Set up your test environment:
+Set up your acceptance-test environment:
 
 ```bash
+export TF_ACC=1
 export GARAGE_ENDPOINT="http://localhost:3903"
 export GARAGE_TOKEN="your-test-admin-token"
 ```
+
+If `TF_ACC` is unset, acceptance tests are skipped. When `TF_ACC=1`, both `GARAGE_ENDPOINT` and `GARAGE_TOKEN` must be set.
 
 Then run the tests:
 

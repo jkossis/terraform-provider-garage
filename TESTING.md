@@ -11,6 +11,17 @@ The provider has comprehensive test coverage including:
 
 ## Unit Tests
 
+### Provider Tests
+
+Located in `internal/provider/*_test.go`, these tests run without Garage credentials.
+
+**Coverage:**
+- Provider configuration precedence for configured, null, empty, and unknown values
+- Key name replacement schema behavior
+- Bucket state persistence after a failed post-create update and alias clearing on read
+- Bucket permission import ID validation
+- Bucket data-source exactly-one selector validation
+
 ### Client Tests
 
 Located in `internal/client/client_test.go`, these tests verify the Garage API client functionality using mock HTTP servers.
@@ -41,7 +52,7 @@ go test ./internal/client -v
 --- PASS: TestListBuckets (0.00s)
 ...
 PASS
-ok      terraform-provider-garage/internal/client       0.221s
+ok      github.com/jkossis/terraform-provider-garage/internal/client       0.221s
 ```
 
 ## Acceptance Tests
@@ -63,7 +74,7 @@ export TF_ACC=1  # Required to enable acceptance tests
 
 ### Bucket Resource Tests
 
-Located in `internal/provider/bucket_resource_test.go`
+Located in `internal/provider/bucket_resource_acc_test.go`
 
 **Test cases:**
 - `TestAccBucketResource_basic` - Basic bucket creation and deletion
@@ -71,6 +82,14 @@ Located in `internal/provider/bucket_resource_test.go`
 - `TestAccBucketResource_quotas` - Bucket quotas (size and object limits)
 - `TestAccBucketResource_full` - All features combined
 - `TestAccBucketResource_nameChange` - Global alias change (forces replacement)
+
+### Key and Bucket Permission Tests
+
+Located in `internal/provider/key_resource_acc_test.go` and `internal/provider/bucket_permission_resource_acc_test.go`.
+
+**Test cases include:**
+- Key creation, import, and replacement scenarios
+- Bucket permission create, update, import, and deletion scenarios
 
 **Run resource tests:**
 
@@ -80,7 +99,7 @@ TF_ACC=1 go test ./internal/provider -v -run="TestAccBucketResource"
 
 ### Bucket Data Source Tests
 
-Located in `internal/provider/bucket_data_source_test.go`
+Located in `internal/provider/bucket_data_source_acc_test.go`
 
 **Test cases:**
 - `TestAccBucketDataSource_byAlias` - Look up bucket by global alias
@@ -126,7 +145,7 @@ TF_ACC=1 go test ./internal/provider -v -run="TestAccBucketResource_website"
 
 Acceptance tests use the `testAccProtoV6ProviderFactories` from `internal/provider/provider_test.go` to instantiate the provider.
 
-The `testAccPreCheck` function verifies that required environment variables are set before running tests.
+The `testAccPreCheck` function skips acceptance tests when `TF_ACC` is unset, then verifies `GARAGE_ENDPOINT` and `GARAGE_TOKEN` before running live Garage tests.
 
 ## Continuous Integration
 

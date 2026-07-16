@@ -12,6 +12,14 @@ Terraform provider for managing Garage S3 buckets via the Garage Admin API.
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    garage = {
+      source = "jkossis/garage"
+    }
+  }
+}
+
 provider "garage" {
   endpoint = "http://localhost:3903"
   token    = "your-garage-admin-token"

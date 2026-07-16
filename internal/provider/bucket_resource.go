@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"terraform-provider-garage/internal/client"
+	"github.com/jkossis/terraform-provider-garage/internal/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -44,7 +44,7 @@ type BucketResourceModel struct {
 }
 
 func (r *BucketResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_bucket"
+	resp.TypeName = typeNamePrefix + "_bucket"
 }
 
 func (r *BucketResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -137,6 +137,11 @@ func (r *BucketResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	data.ID = types.StringValue(bucket.ID)
+	// Keep the created bucket addressable if a subsequent configuration update fails.
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Update bucket with additional configuration if needed
 	updateReq := client.UpdateBucketRequest{}
@@ -225,6 +230,8 @@ func (r *BucketResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	if len(bucket.GlobalAliases) > 0 {
 		data.GlobalAlias = types.StringValue(bucket.GlobalAliases[0])
+	} else {
+		data.GlobalAlias = types.StringNull()
 	}
 
 	data.WebsiteEnabled = types.BoolValue(bucket.WebsiteAccess)
