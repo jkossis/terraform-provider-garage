@@ -162,6 +162,7 @@ func (p *GarageProvider) Resources(ctx context.Context) []func() resource.Resour
 func (p *GarageProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewBucketDataSource,
+		NewKeyDataSource,
 	}
 }
 
