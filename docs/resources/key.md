@@ -70,7 +70,8 @@ output "imported_key_id" {
 
 - `id` (String) The access key ID. If not provided, one will be generated.
 - `name` (String) A human-friendly name for the access key.
-- `secret_access_key` (String, Sensitive) The secret access key. If not provided, one will be generated (only available on creation).
+- `secret_access_key` (String, Sensitive) The secret access key. If not provided, one will be generated. When `store_secret_access_key` is `false`, this attribute is always null; use the `garage_key` ephemeral resource to read the secret.
+- `store_secret_access_key` (Boolean) Whether to keep the secret access key in the state. Defaults to `true`. When `false`, the provider does not write the secret to the state, and `secret_access_key` must not be set. Changing this value does not replace the key.
 
 ## Import
 

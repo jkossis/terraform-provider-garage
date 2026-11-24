@@ -1,5 +1,8 @@
 resource "garage_key" "example" {
   name = "my-application-key"
+
+  # Do not keep the secret in the state.
+  store_secret_access_key = false
 }
 
 # Read the secret of the key from Garage. Terraform does not keep the

@@ -29,8 +29,52 @@ func TestKeyResourceSchema_nameRequiresReplacement(t *testing.T) {
 	if !ok {
 		t.Fatalf("name attribute type = %T, want resource schema.StringAttribute", response.Schema.Attributes["name"])
 	}
-	if len(name.PlanModifiers) != 1 || !strings.Contains(name.PlanModifiers[0].Description(context.Background()), "destroy and recreate") {
+	requiresReplace := false
+	for _, modifier := range name.PlanModifiers {
+		if strings.Contains(modifier.Description(context.Background()), "destroy and recreate") {
+			requiresReplace = true
+		}
+	}
+	if !requiresReplace {
 		t.Fatalf("name plan modifiers = %#v, want RequiresReplace", name.PlanModifiers)
+	}
+}
+
+func TestKeyResourceValidateConfig_rejectsSecretWithoutStorage(t *testing.T) {
+	ctx := context.Background()
+	resourceInstance := &KeyResource{}
+	schemaResponse := &resource.SchemaResponse{}
+	resourceInstance.Schema(ctx, resource.SchemaRequest{}, schemaResponse)
+
+	tests := map[string]struct {
+		store     tftypes.Value
+		secret    tftypes.Value
+		wantError bool
+	}{
+		"secret without storage":    {tftypes.NewValue(tftypes.Bool, false), tftypes.NewValue(tftypes.String, "secret"), true},
+		"no secret without storage": {tftypes.NewValue(tftypes.Bool, false), tftypes.NewValue(tftypes.String, nil), false},
+		"secret with storage":       {tftypes.NewValue(tftypes.Bool, true), tftypes.NewValue(tftypes.String, "secret"), false},
+		"secret with default":       {tftypes.NewValue(tftypes.Bool, nil), tftypes.NewValue(tftypes.String, "secret"), false},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			objectType := schemaResponse.Schema.Type().TerraformType(ctx)
+			config := tfsdk.Config{
+				Schema: schemaResponse.Schema,
+				Raw: tftypes.NewValue(objectType, map[string]tftypes.Value{
+					"id":                      tftypes.NewValue(tftypes.String, nil),
+					"name":                    tftypes.NewValue(tftypes.String, nil),
+					"secret_access_key":       test.secret,
+					"store_secret_access_key": test.store,
+				}),
+			}
+			response := &resource.ValidateConfigResponse{}
+			resourceInstance.ValidateConfig(ctx, resource.ValidateConfigRequest{Config: config}, response)
+			if response.Diagnostics.HasError() != test.wantError {
+				t.Fatalf("ValidateConfig diagnostics = %v, want error %t", response.Diagnostics, test.wantError)
+			}
+		})
 	}
 }
 

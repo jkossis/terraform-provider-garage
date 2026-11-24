@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 // generateGarageKeyID generates a random Garage key ID (GK + 24 hex characters).
@@ -315,4 +317,66 @@ resource "garage_key" "test" {
   id = %[1]q
 }
 `, id)
+}
+
+func TestAccKeyResource_storeSecretAccessKeyToggle(t *testing.T) {
+	var keyID string
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create the key without the secret in the state.
+			{
+				Config: testAccKeyResourceConfig_storeSecret("test-key-store", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("garage_key.test", "store_secret_access_key", "false"),
+					resource.TestCheckNoResourceAttr("garage_key.test", "secret_access_key"),
+					func(s *terraform.State) error {
+						keyID = s.RootModule().Resources["garage_key.test"].Primary.ID
+						return nil
+					},
+				),
+			},
+			// Keep the secret in the state: the key is updated in place.
+			{
+				Config: testAccKeyResourceConfig_storeSecret("test-key-store", true),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("garage_key.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("garage_key.test", "secret_access_key"),
+					func(s *terraform.State) error {
+						if id := s.RootModule().Resources["garage_key.test"].Primary.ID; id != keyID {
+							return fmt.Errorf("key ID = %s, want %s", id, keyID)
+						}
+						return nil
+					},
+				),
+			},
+			// Remove the secret from the state again.
+			{
+				Config: testAccKeyResourceConfig_storeSecret("test-key-store", false),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("garage_key.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("garage_key.test", "secret_access_key"),
+				),
+			},
+		},
+	})
+}
+
+func testAccKeyResourceConfig_storeSecret(name string, store bool) string {
+	return fmt.Sprintf(`
+resource "garage_key" "test" {
+  name                    = %[1]q
+  store_secret_access_key = %[2]t
+}
+`, name, store)
 }

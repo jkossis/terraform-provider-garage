@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -21,6 +22,7 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &KeyResource{}
 var _ resource.ResourceWithImportState = &KeyResource{}
+var _ resource.ResourceWithValidateConfig = &KeyResource{}
 
 func NewKeyResource() resource.Resource {
 	return &KeyResource{}
@@ -33,9 +35,10 @@ type KeyResource struct {
 
 // KeyResourceModel describes the resource data model.
 type KeyResourceModel struct {
-	ID              types.String `tfsdk:"id"`
-	Name            types.String `tfsdk:"name"`
-	SecretAccessKey types.String `tfsdk:"secret_access_key"`
+	ID                   types.String `tfsdk:"id"`
+	Name                 types.String `tfsdk:"name"`
+	SecretAccessKey      types.String `tfsdk:"secret_access_key"`
+	StoreSecretAccessKey types.Bool   `tfsdk:"store_secret_access_key"`
 }
 
 func (r *KeyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -52,8 +55,8 @@ func (r *KeyResource) Schema(ctx context.Context, req resource.SchemaRequest, re
 				Computed:            true,
 				MarkdownDescription: "The access key ID. If not provided, one will be generated.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"name": schema.StringAttribute{
@@ -61,6 +64,7 @@ func (r *KeyResource) Schema(ctx context.Context, req resource.SchemaRequest, re
 				Computed:            true,
 				MarkdownDescription: "A human-friendly name for the access key.",
 				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
@@ -68,13 +72,36 @@ func (r *KeyResource) Schema(ctx context.Context, req resource.SchemaRequest, re
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
-				MarkdownDescription: "The secret access key. If not provided, one will be generated (only available on creation).",
+				MarkdownDescription: "The secret access key. If not provided, one will be generated. When `store_secret_access_key` is `false`, this attribute is always null; use the `garage_key` ephemeral resource to read the secret.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-					stringplanmodifier.UseStateForUnknown(),
+					secretAccessKeyPlanModifier{},
 				},
 			},
+			"store_secret_access_key": schema.BoolAttribute{
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(true),
+				MarkdownDescription: "Whether to keep the secret access key in the state. Defaults to `true`. When `false`, the provider does not write the secret to the state, and `secret_access_key` must not be set. Changing this value does not replace the key.",
+			},
 		},
+	}
+}
+
+func (r *KeyResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var data KeyResourceModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.StoreSecretAccessKey.IsNull() && !data.StoreSecretAccessKey.IsUnknown() && !data.StoreSecretAccessKey.ValueBool() && !data.SecretAccessKey.IsNull() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("secret_access_key"),
+			"Invalid Configuration",
+			"'secret_access_key' must not be set when 'store_secret_access_key' is false, because the provider does not keep the secret in the state.",
+		)
 	}
 }
 
@@ -171,6 +198,10 @@ func (r *KeyResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
+	if !data.StoreSecretAccessKey.ValueBool() {
+		data.SecretAccessKey = types.StringNull()
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -202,15 +233,42 @@ func (r *KeyResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	data.ID = types.StringValue(key.AccessKeyID)
 	data.Name = types.StringValue(key.Name)
 	// Note: SecretAccessKey is not returned by GetKeyInfo (only on creation), so we keep the existing value
+	if data.StoreSecretAccessKey.IsNull() {
+		// The state comes from an import or from a provider version without this attribute.
+		data.StoreSecretAccessKey = types.BoolValue(true)
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
+// Update only changes store_secret_access_key. Changes to the other attributes replace the resource.
 func (r *KeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError(
-		"Unsupported Access Key Update",
-		"Garage access key updates are not supported. Changes to access key attributes replace the resource.",
-	)
+	var data KeyResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if data.SecretAccessKey.IsUnknown() {
+		// store_secret_access_key changed to true: read the secret from Garage.
+		key, err := r.client.GetKeyInfo(ctx, client.GetKeyInfoRequest{
+			ID:            data.ID.ValueString(),
+			ShowSecretKey: true,
+		})
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read access key, got error: %s", err))
+			return
+		}
+		if key == nil || key.SecretAccessKey == nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Garage did not return the secret of access key %s", data.ID.ValueString()))
+			return
+		}
+		data.SecretAccessKey = types.StringValue(*key.SecretAccessKey)
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *KeyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -240,4 +298,65 @@ func (r *KeyResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 func (r *KeyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// secretAccessKeyPlanModifier plans secret_access_key from store_secret_access_key.
+//
+//   - A configured secret replaces the key when it changes.
+//   - When store_secret_access_key is false, the planned secret is null.
+//   - When store_secret_access_key changes from false to true, the planned secret is unknown, and Update reads it from Garage.
+//   - Otherwise the planned secret is the value in the state.
+type secretAccessKeyPlanModifier struct{}
+
+func (m secretAccessKeyPlanModifier) Description(ctx context.Context) string {
+	return "Replaces the key when the configured secret changes, and keeps the secret out of the plan when store_secret_access_key is false."
+}
+
+func (m secretAccessKeyPlanModifier) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+func (m secretAccessKeyPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Do nothing on destroy.
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	creating := req.State.Raw.IsNull()
+
+	if !req.ConfigValue.IsNull() {
+		if !creating && !req.ConfigValue.Equal(req.StateValue) {
+			resp.RequiresReplace = true
+		}
+		return
+	}
+
+	var store types.Bool
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("store_secret_access_key"), &store)...)
+	if resp.Diagnostics.HasError() || store.IsUnknown() {
+		return
+	}
+
+	if !store.ValueBool() {
+		resp.PlanValue = types.StringNull()
+		return
+	}
+
+	if creating {
+		// Create generates the secret.
+		return
+	}
+
+	var storedBefore types.Bool
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("store_secret_access_key"), &storedBefore)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !storedBefore.IsNull() && !storedBefore.ValueBool() {
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+
+	resp.PlanValue = req.StateValue
 }
