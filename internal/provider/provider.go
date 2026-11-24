@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -27,6 +28,7 @@ const (
 
 // Ensure GarageProvider satisfies various provider interfaces.
 var _ provider.Provider = &GarageProvider{}
+var _ provider.ProviderWithEphemeralResources = &GarageProvider{}
 
 // GarageProvider defines the provider implementation.
 type GarageProvider struct {
@@ -95,6 +97,13 @@ func (p *GarageProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	garageClient := client.NewClient(config.endpoint, config.token)
 	resp.DataSourceData = garageClient
 	resp.ResourceData = garageClient
+	resp.EphemeralResourceData = garageClient
+}
+
+func (p *GarageProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
+	return []func() ephemeral.EphemeralResource{
+		NewKeyEphemeralResource,
+	}
 }
 
 func providerConfigFrom(data GarageProviderModel, lookupEnv func(string) string) (providerConfig, diag.Diagnostics) {

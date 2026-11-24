@@ -151,6 +151,8 @@ type DeleteKeyRequest struct {
 // GetKeyInfoRequest represents the request to get key info.
 type GetKeyInfoRequest struct {
 	ID string `json:"id"`
+	// ShowSecretKey asks Garage to include the secret access key.
+	ShowSecretKey bool `json:"-"`
 }
 
 // doRequest makes an HTTP request to the Garage API.
@@ -427,6 +429,9 @@ func (c *Client) ImportKey(ctx context.Context, req ImportKeyRequest) (*AccessKe
 // GetKeyInfo gets information about a specific access key.
 func (c *Client) GetKeyInfo(ctx context.Context, req GetKeyInfoRequest) (*AccessKey, error) {
 	path := fmt.Sprintf("/v2/GetKeyInfo?id=%s", req.ID)
+	if req.ShowSecretKey {
+		path += "&showSecretKey=true"
+	}
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {

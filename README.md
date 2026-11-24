@@ -148,6 +148,7 @@ Generated documentation is the authoritative schema reference:
 - [`garage_key` resource](./docs/resources/key.md)
 - [`garage_bucket_permission` resource](./docs/resources/bucket_permission.md)
 - [`garage_bucket` data source](./docs/data-sources/bucket.md)
+- [`garage_key` ephemeral resource](./docs/ephemeral-resources/key.md)
 
 Changing an access key `name` replaces the key. Bucket permission imports must use exactly `bucket_id/access_key_id`.
 
@@ -160,6 +161,7 @@ Check out the [examples](./examples/) directory for more configurations:
 - [Access Key Resource Examples](./examples/resources/garage_key/resource.tf)
 - [Bucket Permission Resource Examples](./examples/resources/garage_bucket_permission/resource.tf)
 - [Bucket Data Source Examples](./examples/data-sources/garage_bucket/data-source.tf)
+- [Access Key Ephemeral Resource Examples](./examples/ephemeral-resources/garage_key/ephemeral-resource.tf)
 
 ## Troubleshooting
 
