@@ -411,3 +411,48 @@ func TestClient_errorHandling(t *testing.T) {
 		t.Error("Expected error for 500 response")
 	}
 }
+
+func TestGetKeyInfo_showSecretKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/GetKeyInfo" {
+			t.Errorf("Expected path /v2/GetKeyInfo, got %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("id"); got != "GK123" {
+			t.Errorf("Expected key ID 'GK123' in query, got %s", got)
+		}
+		if got := r.URL.Query().Get("showSecretKey"); got != "true" {
+			t.Errorf("Expected showSecretKey=true in query, got %q", got)
+		}
+
+		secret := "secret-123"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(AccessKey{AccessKeyID: "GK123", Name: "test", SecretAccessKey: &secret})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	key, err := client.GetKeyInfo(context.Background(), GetKeyInfoRequest{ID: "GK123", ShowSecretKey: true})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if key == nil || key.SecretAccessKey == nil || *key.SecretAccessKey != "secret-123" {
+		t.Fatalf("Expected secret 'secret-123', got %+v", key)
+	}
+}
+
+func TestGetKeyInfo_omitsShowSecretKeyByDefault(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("showSecretKey") {
+			t.Errorf("Expected no showSecretKey in query, got %q", r.URL.RawQuery)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(AccessKey{AccessKeyID: "GK123", Name: "test"})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	if _, err := client.GetKeyInfo(context.Background(), GetKeyInfoRequest{ID: "GK123"}); err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+}

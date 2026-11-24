@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	providerschema "github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -215,6 +216,27 @@ func TestGarageProviderDataSources_registerGarageTypeNames_whenCalled(t *testing
 	}
 }
 
+func TestGarageProviderEphemeralResources_registerGarageTypeNames_whenCalled(t *testing.T) {
+	// Given
+	garageProvider := &GarageProvider{}
+
+	// When
+	ephemeralResources := garageProvider.EphemeralResources(context.Background())
+
+	// Then
+	wantNames := []string{"garage_key"}
+	if len(ephemeralResources) != len(wantNames) {
+		t.Fatalf("ephemeral resource count = %d, want %d", len(ephemeralResources), len(wantNames))
+	}
+	for index, ephemeralResourceFactory := range ephemeralResources {
+		resp := &ephemeral.MetadataResponse{}
+		ephemeralResourceFactory().Metadata(context.Background(), ephemeral.MetadataRequest{ProviderTypeName: typeNamePrefix}, resp)
+		if resp.TypeName != wantNames[index] {
+			t.Fatalf("ephemeral resource TypeName = %q, want %q", resp.TypeName, wantNames[index])
+		}
+	}
+}
+
 func TestGarageProviderConfigure_assignsClientData_whenConfigValid(t *testing.T) {
 	// Given
 	garageProvider := &GarageProvider{}
@@ -238,6 +260,9 @@ func TestGarageProviderConfigure_assignsClientData_whenConfigValid(t *testing.T)
 	}
 	if resp.ResourceData != resp.DataSourceData {
 		t.Fatal("ResourceData and DataSourceData differ, want shared configured client")
+	}
+	if resp.EphemeralResourceData != resp.ResourceData {
+		t.Fatal("EphemeralResourceData and ResourceData differ, want shared configured client")
 	}
 }
 
