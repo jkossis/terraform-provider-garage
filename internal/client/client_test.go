@@ -61,12 +61,11 @@ func TestListBuckets(t *testing.T) {
 			{
 				ID:            "bucket-1",
 				GlobalAliases: []string{"test-bucket-1"},
-				WebsiteAccess: false,
 			},
 			{
 				ID:            "bucket-2",
 				GlobalAliases: []string{"test-bucket-2"},
-				WebsiteAccess: true,
+				WebsiteAccess: WebsiteAccess{Enabled: true},
 			},
 		}
 
@@ -90,7 +89,7 @@ func TestListBuckets(t *testing.T) {
 		t.Errorf("Expected bucket ID 'bucket-1', got %s", buckets[0].ID)
 	}
 
-	if buckets[1].WebsiteAccess != true {
+	if !buckets[1].WebsiteAccess.Enabled {
 		t.Error("Expected second bucket to have website access enabled")
 	}
 }
@@ -113,7 +112,6 @@ func TestGetBucketInfo_byID(t *testing.T) {
 		bucket := Bucket{
 			ID:            "bucket-123",
 			GlobalAliases: []string{"my-bucket"},
-			WebsiteAccess: false,
 			Objects:       42,
 			Bytes:         1024,
 		}
@@ -143,6 +141,32 @@ func TestGetBucketInfo_byID(t *testing.T) {
 
 	if bucket.Objects != 42 {
 		t.Errorf("Expected 42 objects, got %d", bucket.Objects)
+	}
+}
+
+func TestBucketUnmarshalJSON_websiteAccess(t *testing.T) {
+	testCases := map[string]struct{ body, want string }{
+		"garage v2": {
+			body: `{"websiteAccess":true,"websiteConfig":{"indexDocument":"index.html","errorDocument":"404.html"}}`,
+			want: `{"enabled":true,"indexDocument":"index.html","errorDocument":"404.html"}`,
+		},
+		"garage v3": {
+			body: `{"websiteAccess":{"enabled":true,"indexDocument":"index.html","errorDocument":"404.html"}}`,
+			want: `{"enabled":true,"indexDocument":"index.html","errorDocument":"404.html"}`,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var bucket Bucket
+			if err := json.Unmarshal([]byte(testCase.body), &bucket); err != nil {
+				t.Fatalf("Unmarshal: %v", err)
+			}
+			got, _ := json.Marshal(bucket.WebsiteAccess)
+			if string(got) != testCase.want {
+				t.Errorf("websiteAccess = %s, want %s", got, testCase.want)
+			}
+		})
 	}
 }
 
@@ -191,7 +215,6 @@ func TestCreateBucket(t *testing.T) {
 		bucket := Bucket{
 			ID:            "bucket-new-123",
 			GlobalAliases: []string{"new-bucket"},
-			WebsiteAccess: false,
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -239,7 +262,6 @@ func TestUpdateBucket(t *testing.T) {
 		bucket := Bucket{
 			ID:            "bucket-123",
 			GlobalAliases: []string{"my-bucket"},
-			WebsiteAccess: false,
 			Quotas: &BucketQuotas{
 				MaxSize: &maxSize,
 			},

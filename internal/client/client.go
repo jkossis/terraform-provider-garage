@@ -33,8 +33,7 @@ func NewClient(endpoint, token string) *Client {
 type Bucket struct {
 	ID                string          `json:"id"`
 	GlobalAliases     []string        `json:"globalAliases"`
-	WebsiteAccess     bool            `json:"websiteAccess"`
-	WebsiteConfig     *WebsiteConfig  `json:"websiteConfig,omitempty"`
+	WebsiteAccess     WebsiteAccess   `json:"websiteAccess"`
 	Keys              []BucketKeyInfo `json:"keys"`
 	Objects           int64           `json:"objects,omitempty"`
 	Bytes             int64           `json:"bytes,omitempty"`
@@ -42,10 +41,42 @@ type Bucket struct {
 	Quotas            *BucketQuotas   `json:"quotas,omitempty"`
 }
 
-// WebsiteConfig represents website configuration for a bucket.
-type WebsiteConfig struct {
+// WebsiteAccess represents website configuration for a bucket.
+type WebsiteAccess struct {
+	Enabled       bool   `json:"enabled"`
 	IndexDocument string `json:"indexDocument"`
 	ErrorDocument string `json:"errorDocument"`
+}
+
+// UnmarshalJSON reads websiteAccess as a Garage v2 bool or a v3 object.
+func (b *Bucket) UnmarshalJSON(data []byte) error {
+	type bucket Bucket
+	aux := struct {
+		*bucket
+		WebsiteAccess json.RawMessage `json:"websiteAccess"`
+		WebsiteConfig *WebsiteAccess  `json:"websiteConfig"`
+	}{bucket: (*bucket)(b)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	b.WebsiteAccess = WebsiteAccess{}
+	var err error
+	switch {
+	case len(aux.WebsiteAccess) == 0:
+	case aux.WebsiteAccess[0] == '{':
+		err = json.Unmarshal(aux.WebsiteAccess, &b.WebsiteAccess)
+	default:
+		err = json.Unmarshal(aux.WebsiteAccess, &b.WebsiteAccess.Enabled)
+	}
+	if err != nil {
+		return fmt.Errorf("decoding websiteAccess: %w", err)
+	}
+	if aux.WebsiteConfig != nil {
+		b.WebsiteAccess.IndexDocument = aux.WebsiteConfig.IndexDocument
+		b.WebsiteAccess.ErrorDocument = aux.WebsiteConfig.ErrorDocument
+	}
+	return nil
 }
 
 // BucketKeyInfo represents key permissions on a bucket.

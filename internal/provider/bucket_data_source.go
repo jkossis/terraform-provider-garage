@@ -190,11 +190,11 @@ func (d *BucketDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		data.GlobalAliases = aliasList
 	}
 
-	data.WebsiteEnabled = types.BoolValue(bucket.WebsiteAccess)
+	data.WebsiteEnabled = types.BoolValue(bucket.WebsiteAccess.Enabled)
 
-	if bucket.WebsiteConfig != nil {
-		data.WebsiteIndex = types.StringValue(bucket.WebsiteConfig.IndexDocument)
-		data.WebsiteError = types.StringValue(bucket.WebsiteConfig.ErrorDocument)
+	if bucket.WebsiteAccess.Enabled {
+		data.WebsiteIndex = types.StringValue(bucket.WebsiteAccess.IndexDocument)
+		data.WebsiteError = types.StringValue(bucket.WebsiteAccess.ErrorDocument)
 	} else {
 		data.WebsiteIndex = types.StringNull()
 		data.WebsiteError = types.StringNull()
