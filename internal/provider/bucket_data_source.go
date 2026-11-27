@@ -193,8 +193,8 @@ func (d *BucketDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	data.WebsiteEnabled = types.BoolValue(bucket.WebsiteAccess.Enabled)
 
 	if bucket.WebsiteAccess.Enabled {
-		data.WebsiteIndex = types.StringValue(bucket.WebsiteAccess.IndexDocument)
-		data.WebsiteError = types.StringValue(bucket.WebsiteAccess.ErrorDocument)
+		data.WebsiteIndex = types.StringPointerValue(bucket.WebsiteAccess.IndexDocument)
+		data.WebsiteError = types.StringPointerValue(bucket.WebsiteAccess.ErrorDocument)
 	} else {
 		data.WebsiteIndex = types.StringNull()
 		data.WebsiteError = types.StringNull()

@@ -154,6 +154,14 @@ func TestBucketUnmarshalJSON_websiteAccess(t *testing.T) {
 			body: `{"websiteAccess":{"enabled":true,"indexDocument":"index.html","errorDocument":"404.html"}}`,
 			want: `{"enabled":true,"indexDocument":"index.html","errorDocument":"404.html"}`,
 		},
+		"garage v2 without error document": {
+			body: `{"websiteAccess":true,"websiteConfig":{"indexDocument":"index.html","errorDocument":null}}`,
+			want: `{"enabled":true,"indexDocument":"index.html","errorDocument":null}`,
+		},
+		"garage v3 without error document": {
+			body: `{"websiteAccess":{"enabled":true,"indexDocument":"index.html","errorDocument":null}}`,
+			want: `{"enabled":true,"indexDocument":"index.html","errorDocument":null}`,
+		},
 	}
 
 	for name, testCase := range testCases {

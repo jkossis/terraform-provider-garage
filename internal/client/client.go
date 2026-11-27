@@ -43,9 +43,9 @@ type Bucket struct {
 
 // WebsiteAccess represents website configuration for a bucket.
 type WebsiteAccess struct {
-	Enabled       bool   `json:"enabled"`
-	IndexDocument string `json:"indexDocument"`
-	ErrorDocument string `json:"errorDocument"`
+	Enabled       bool    `json:"enabled"`
+	IndexDocument *string `json:"indexDocument"`
+	ErrorDocument *string `json:"errorDocument"`
 }
 
 // UnmarshalJSON reads websiteAccess as a Garage v2 bool or a v3 object.
